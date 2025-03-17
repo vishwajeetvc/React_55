@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+@keyframes refresh {
+  0% {
+    tranfrom: rotate(-0deg);
+  }
+
+  50% {
+    tranfrom: rotate(-180deg);
+  }
+  100% {
+    tranfrom: rotate(-90deg);
+  }
+}
+
+td {
+  padding: 2px 5px;
+}
