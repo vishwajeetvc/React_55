@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+html {
+  background-color:#1d2021;
+  color:white;
+}
+
+td {
+  padding: 2px 5px;
+}

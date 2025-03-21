@@ -19,7 +19,8 @@ const fileSchema = new Schema({
     ref : 'Directory', // mainly used for populate
   },
 },{
-  strict : 'throw'
+  strict : 'throw',
+  versionKey : false
 })
 
 const File = model('File', fileSchema);

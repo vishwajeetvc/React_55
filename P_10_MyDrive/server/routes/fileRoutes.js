@@ -1,9 +1,10 @@
-import { ObjectId } from "mongodb";
 import express from "express";
 import { createWriteStream } from "fs";
 import { rm } from "fs/promises";
 import path from "path";
 import validateIdMiddleware from "../middlewares/validateIdMiddleware.js";
+import Directory from "../models/directoryModel.js";
+import File from "../models/fileModel.js";
 
 const router = express.Router();
 
@@ -11,16 +12,12 @@ router.param("parentDirId", validateIdMiddleware);
 router.param("id", validateIdMiddleware);
 
 router.post("/:parentDirId?", async (req, res) => {
-  const db = req.db;
-  const dirCollection = db.collection("directories");
-  const filesCollection = db.collection("files");
   const parentDirId = req.params.parentDirId || req.user.rootDirId;
-  const parentDirData = await dirCollection.findOne({
-    _id: new ObjectId(String(parentDirId)),
+  const parentDirData = await Directory.findOne({
+    _id: parentDirId,
     userId: req.user._id,
-  });
+  }).lean();
 
-  // Check if parent directory exists
   if (!parentDirData) {
     return res.status(404).json({ error: "Parent directory not found!" });
   }
@@ -28,14 +25,14 @@ router.post("/:parentDirId?", async (req, res) => {
   const filename = req.headers.filename || "untitled";
   const extension = path.extname(filename);
 
-  const insertedFile = await filesCollection.insertOne({
+  const insertedFile = await File.insertOne({
     extension,
     name: filename,
     parentDirId: parentDirData._id,
     userId: req.user._id,
   });
 
-  const fileId = insertedFile.insertedId.toString();
+  const fileId = insertedFile._id.toString();
 
   const fullFileName = `${fileId}${extension}`;
 
@@ -46,19 +43,17 @@ router.post("/:parentDirId?", async (req, res) => {
     return res.status(201).json({ message: "File Uploaded" });
   });
   req.on("error", async () => {
-    await filesCollection.deleteOne({ _id: insertedFile.insertedId });
+    await File.deleteOne({ _id: insertedFile.insertedId });
     return res.status(404).json({ message: "could Not upload file" });
   });
 });
 
 router.get("/:id", async (req, res) => {
   const { id } = req.params;
-  const db = req.db;
-  const filesCollection = db.collection("files");
-  const fileData = await filesCollection.findOne({
-    _id: new ObjectId(String(id)),
+  const fileData = await File.findOne({
+    _id: id,
     userId: req.user._id,
-  });
+  }).lean();
 
   // If "download" is requested, set the appropriate headers
   const filePath = `${process.cwd()}/storage/${id}${fileData.extension}`;
@@ -77,26 +72,19 @@ router.get("/:id", async (req, res) => {
 
 router.patch("/:id", async (req, res, next) => {
   const { id } = req.params;
-  const db = req.db;
-  const filesCollection = db.collection("files");
-  const fileData = await filesCollection.findOne({
-    _id: new ObjectId(String(id)),
+  const fileData = await File.findOne({
+    _id: id,
     userId: req.user._id,
   });
 
-  // Check if file exists
   if (!fileData) {
     return res.status(404).json({ error: "File not found!" });
   }
 
   try {
-    await filesCollection.updateOne(
-      { _id: new ObjectId(id) },
-      {
-        $set: {
-          name: req.body.newFilename,
-        },
-      },
+    await File.findOneAndUpdate(
+      { _id: id},
+      { name: req.body.newFilename },
     );
     return res.status(200).json({ message: "Renamed" });
   } catch (err) {
@@ -107,10 +95,8 @@ router.patch("/:id", async (req, res, next) => {
 
 router.delete("/:id", async (req, res, next) => {
   const { id } = req.params;
-  const db = req.db;
-  const filesCollection = db.collection("files");
-  const fileData = await filesCollection.findOne({
-    _id: new ObjectId(String(id)),
+  const fileData = await File.findOne({
+    _id: id,
     userId: req.user._id,
   });
   if (!fileData) {
@@ -118,7 +104,7 @@ router.delete("/:id", async (req, res, next) => {
   }
   try {
     await rm(`./storage/${id}${fileData.extension}`);
-    await filesCollection.deleteOne({ _id: fileData._id });
+    await File.deleteOne({ _id: fileData._id });
     return res.status(200).json({ message: "File Deleted Successfully" });
   } catch (err) {
     next(err);

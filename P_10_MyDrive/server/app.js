@@ -5,12 +5,9 @@ import directoryRoutes from "./routes/directoryRoutes.js";
 import fileRoutes from "./routes/fileRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import checkAuth from "./middlewares/authMiddleware.js";
-
-import { connectDB } from "./dbConnection.js";
 import { connectDBmongoose } from "./mongoose.js";
 
 try {
-  const db = await connectDB();
   await connectDBmongoose();
   const app = express();
 
@@ -22,11 +19,6 @@ try {
       credentials: true,
     }),
   );
-
-  app.use((req, _res, next)=>{
-    req.db = db;
-    next();
-  })
 
   app.use("/directory", checkAuth, directoryRoutes);
   app.use("/file", checkAuth, fileRoutes);
